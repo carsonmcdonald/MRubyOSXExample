@@ -45,8 +45,6 @@
 
 /* -DDISABLE_XXXX to drop following features */
 //#define DISABLE_SPRINTF	/* Kernel.sprintf method */
-//#define DISABLE_MATH		/* Math functions */
-//#define DISABLE_TIME		/* Time class */
 //#define DISABLE_STRUCT	/* Struct class */
 //#define DISABLE_STDIO		/* use of stdio */
 
@@ -72,32 +70,19 @@
    typedef int64_t mrb_int;
 #  define MRB_INT_MIN INT64_MIN
 #  define MRB_INT_MAX INT64_MAX
-#  define MRB_INT_FORMAT PRId64
-#  define mrb_int_to_str(buf, i) sprintf(buf, "%" MRB_INT_FORMAT, i)
 #  define str_to_mrb_int(buf) strtoll(buf, NULL, 10)
 # endif
 #else
   typedef int32_t mrb_int;
 # define MRB_INT_MIN INT32_MIN
 # define MRB_INT_MAX INT32_MAX
-# define MRB_INT_FORMAT PRId32
-# define mrb_int_to_str(buf, i) sprintf(buf, "%" MRB_INT_FORMAT, i)
 # define str_to_mrb_int(buf) strtol(buf, NULL, 10)
 #endif
 typedef short mrb_sym;
 
 /* define ENABLE_XXXX from DISABLE_XXX */
-#ifndef DISABLE_REGEXP
-#define ENABLE_REGEXP
-#endif
 #ifndef DISABLE_SPRINTF
 #define ENABLE_SPRINTF
-#endif
-#ifndef DISABLE_MATH
-#define ENABLE_MATH
-#endif
-#ifndef DISABLE_TIME
-#define ENABLE_TIME
 #endif
 #ifndef DISABLE_STRUCT
 #define ENABLE_STRUCT
