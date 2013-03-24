@@ -12,7 +12,6 @@ extern "C" {
 #endif
 
 #include "../mruby.h"
-#include <stdio.h>
 #include <setjmp.h>
 
 /* load context */
@@ -21,9 +20,9 @@ typedef struct mrbc_context {
   int slen;
   char *filename;
   short lineno;
-  int capture_errors:1;
-  int dump_result:1;
-  int no_exec:1;
+  mrb_bool capture_errors:1;
+  mrb_bool dump_result:1;
+  mrb_bool no_exec:1;
 } mrbc_context;
 
 mrbc_context* mrbc_context_new(mrb_state *mrb);
@@ -59,6 +58,43 @@ struct mrb_parser_message {
   char* message;
 };
 
+#define STR_FUNC_PARSING 0x01
+#define STR_FUNC_EXPAND  0x02
+#define STR_FUNC_REGEXP  0x04
+#define STR_FUNC_WORD    0x08
+#define STR_FUNC_SYMBOL  0x10
+#define STR_FUNC_ARRAY   0x20
+#define STR_FUNC_HEREDOC 0x40
+#define STR_FUNC_XQUOTE  0x80
+
+enum mrb_string_type {
+  str_not_parsing  = (0),
+  str_squote   = (STR_FUNC_PARSING),
+  str_dquote   = (STR_FUNC_PARSING|STR_FUNC_EXPAND),
+  str_regexp   = (STR_FUNC_PARSING|STR_FUNC_REGEXP|STR_FUNC_EXPAND),
+  str_sword    = (STR_FUNC_PARSING|STR_FUNC_WORD|STR_FUNC_ARRAY),
+  str_dword    = (STR_FUNC_PARSING|STR_FUNC_WORD|STR_FUNC_ARRAY|STR_FUNC_EXPAND),
+  str_ssym     = (STR_FUNC_PARSING|STR_FUNC_SYMBOL),
+  str_ssymbols = (STR_FUNC_PARSING|STR_FUNC_SYMBOL|STR_FUNC_ARRAY),
+  str_dsymbols = (STR_FUNC_PARSING|STR_FUNC_SYMBOL|STR_FUNC_ARRAY|STR_FUNC_EXPAND),
+  str_heredoc  = (STR_FUNC_PARSING|STR_FUNC_HEREDOC),
+  str_xquote   = (STR_FUNC_PARSING|STR_FUNC_XQUOTE|STR_FUNC_EXPAND),
+};
+
+/* heredoc structure */
+struct mrb_parser_heredoc_info {
+  mrb_bool allow_indent:1;
+  mrb_bool line_head:1;
+  enum mrb_string_type type;
+  const char *term;
+  int term_len;
+  mrb_ast_node *doc;
+};
+
+#ifndef MRB_PARSER_BUF_SIZE
+# define MRB_PARSER_BUF_SIZE 1024
+#endif
+
 /* parser structure */
 struct mrb_parser_state {
   mrb_state *mrb;
@@ -71,8 +107,7 @@ struct mrb_parser_state {
   int column;
 
   enum mrb_lex_state_enum lstate;
-  int sterm;
-  int regexp;
+  mrb_ast_node *lex_strterm; /* (type nest_level beg . end) */
 
   unsigned int cond_stack;
   unsigned int cmdarg_stack;
@@ -82,15 +117,18 @@ struct mrb_parser_state {
   mrb_ast_node *locals;
 
   mrb_ast_node *pb;
-  char buf[1024];
+  char buf[MRB_PARSER_BUF_SIZE];
   int bidx;
 
-  mrb_ast_node *heredoc;
+  mrb_ast_node *heredocs;	/* list of mrb_parser_heredoc_info* */
+  mrb_ast_node *parsing_heredoc;
+  mrb_bool heredoc_starts_nextline:1;
+  mrb_bool heredoc_end_now:1; /* for mirb */
 
   void *ylval;
 
-  int nerr;
-  int nwarn;
+  size_t nerr;
+  size_t nwarn;
   mrb_ast_node *tree;
 
   int capture_errors;
