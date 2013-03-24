@@ -44,7 +44,7 @@ static mrb_value foo_print_message(mrb_state* mrb, mrb_value obj)
     
     struct RClass *foo_module = mrb_define_module(mrb, "Foo");
     
-    // Define a class method not no args
+    // Define a class method with no args
     mrb_define_class_method(mrb, foo_module, "print", foo_print_message, ARGS_REQ(1));
     
     FILE *fp = fopen([bundleLocation UTF8String], "rb");
