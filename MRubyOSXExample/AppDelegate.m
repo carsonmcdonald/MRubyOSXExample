@@ -40,7 +40,7 @@ static mrb_value foo_print_message(mrb_state* mrb, mrb_value obj)
     
     NSString *bundleLocation = [[[NSBundle mainBundle] resourcePath] stringByAppendingPathComponent:@"test.mrb"];
     
-    mrb_state *mrb = mrb_open();;
+    mrb_state *mrb = mrb_open();
     
     struct RClass *foo_module = mrb_define_module(mrb, "Foo");
     
