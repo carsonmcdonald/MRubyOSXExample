@@ -19,14 +19,28 @@ static mrb_value foo_print_message(mrb_state* mrb, mrb_value obj)
     
     if (mrb_nil_p(message))
     {
-        debugBlock(@"");
+        debugBlock(@"\n");
     }
     else
     {
-        debugBlock([NSString stringWithFormat:@"Foo::printMessage => %s", mrb_str_ptr(message)->ptr]);
+        debugBlock([NSString stringWithFormat:@"Foo::printMessage => %s\n", mrb_str_ptr(message)->ptr]);
     }
     
     return mrb_nil_value();
+}
+
+// Redirect printed output the the output text area.
+static mrb_value mrb_printstr(mrb_state *mrb, mrb_value self)
+{
+    mrb_value message;
+    mrb_get_args(mrb, "o", &message);
+    
+    if(mrb_string_p(message))
+    {
+        debugBlock([NSString stringWithFormat:@"%s", mrb_str_ptr(message)->ptr]);
+    }
+    
+    return message;
 }
 
 @implementation AppDelegate
@@ -38,7 +52,7 @@ static mrb_value foo_print_message(mrb_state* mrb, mrb_value obj)
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
 {
     debugBlock = ^(NSString *message) {
-        [_outputTextView insertText:[NSString stringWithFormat:@"%@\n", message ]];
+        [_outputTextView insertText:[NSString stringWithFormat:@"%@", message]];
     };
     
     irep_number = -1;
@@ -46,11 +60,14 @@ static mrb_value foo_print_message(mrb_state* mrb, mrb_value obj)
 
 - (IBAction)runButtonAction:(id)sender
 {
-    debugBlock(@"Run starting.");
+    debugBlock(@"Run starting.\n");
+    
+    // Override the method used to print strings
+    mrb_define_method(mrb, mrb->kernel_module, "__printstr__", mrb_printstr, ARGS_REQ(1));
     
     mrb_run(mrb, mrb_proc_new(mrb, mrb->irep[irep_number]), mrb_top_self(mrb));
     
-    debugBlock(@"Run complete.");
+    debugBlock(@"Run complete.\n");
 }
 
 - (IBAction)loadTestFileAction:(id)sender
@@ -70,7 +87,7 @@ static mrb_value foo_print_message(mrb_state* mrb, mrb_value obj)
     FILE *fp = fopen([bundleLocation UTF8String], "rb");
     if (fp == NULL)
     {
-        debugBlock(@"Error loading test file from bundle.");
+        debugBlock(@"Error loading test file from bundle.\n");
         
         [self.runButton setEnabled:originalEnabled];
     }
@@ -80,13 +97,13 @@ static mrb_value foo_print_message(mrb_state* mrb, mrb_value obj)
 
         if(irep_number < 0)
         {
-            debugBlock(@"Error loading test.");
+            debugBlock(@"Error loading test.\n");
         }
         else
         {
             [self.runButton setEnabled:YES];
             
-            debugBlock(@"Test loaded.");
+            debugBlock(@"Test loaded.\n");
         }
         
         [self.runButton setEnabled:YES];
@@ -112,11 +129,10 @@ static mrb_value foo_print_message(mrb_state* mrb, mrb_value obj)
         {
             mrb = mrb_open();
             
-            
             FILE *fp = fopen([fileDialog.URL.path UTF8String], "rb");
             if (fp == NULL)
             {
-                debugBlock([NSString stringWithFormat:@"Error loading test file: %@", fileDialog.URL.lastPathComponent]);
+                debugBlock([NSString stringWithFormat:@"Error loading test file: %@\n", fileDialog.URL.lastPathComponent]);
                 
                 [self.runButton setEnabled:originalEnabled];
             }
@@ -128,13 +144,13 @@ static mrb_value foo_print_message(mrb_state* mrb, mrb_value obj)
                 
                 if(irep_number < 0)
                 {
-                    debugBlock([NSString stringWithFormat:@"Error loading: %@", fileDialog.URL.lastPathComponent]);
+                    debugBlock([NSString stringWithFormat:@"Error loading irep from: %@\n", fileDialog.URL.lastPathComponent]);
                 }
                 else
                 {
                     [self.runButton setEnabled:YES];
                     
-                    debugBlock([NSString stringWithFormat:@"Loaded: %@", fileDialog.URL.lastPathComponent]);
+                    debugBlock([NSString stringWithFormat:@"Loaded: %@\n", fileDialog.URL.lastPathComponent]);
                 }
             }
         }
