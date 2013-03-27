@@ -52,7 +52,8 @@ static mrb_value mrb_printstr(mrb_state *mrb, mrb_value self)
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
 {
     debugBlock = ^(NSString *message) {
-        [_outputTextView insertText:[NSString stringWithFormat:@"%@", message]];
+        NSAttributedString *attrStr = [[NSAttributedString alloc] initWithString:[NSString stringWithFormat:@"%@", message]];
+        [_outputTextView.textStorage appendAttributedString:attrStr];
     };
     
     irep_number = -1;
