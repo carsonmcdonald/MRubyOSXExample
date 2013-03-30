@@ -90,6 +90,7 @@ typedef struct mrb_state {
   size_t irep_len, irep_capa;
 
   mrb_sym init_sym;
+  struct RObject *top_self;
   struct RClass *object_class;
   struct RClass *class_class;
   struct RClass *module_class;
@@ -138,6 +139,7 @@ typedef struct mrb_state {
   struct RClass *eStandardError_class;
 
   void *ud; /* auxiliary data */
+
 } mrb_state;
 
 typedef mrb_value (*mrb_func_t)(mrb_state *mrb, mrb_value);
@@ -194,6 +196,7 @@ mrb_sym mrb_intern2(mrb_state*,const char*,size_t);
 mrb_sym mrb_intern_str(mrb_state*,mrb_value);
 const char *mrb_sym2name(mrb_state*,mrb_sym);
 const char *mrb_sym2name_len(mrb_state*,mrb_sym,size_t*);
+mrb_value mrb_sym2str(mrb_state*,mrb_sym);
 mrb_value mrb_str_format(mrb_state *, int, const mrb_value *, mrb_value);
 
 /* For backward compatibility. */
