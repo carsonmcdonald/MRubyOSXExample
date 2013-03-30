@@ -56,6 +56,7 @@ static mrb_value mrb_printstr(mrb_state *mrb, mrb_value self)
         [_outputTextView.textStorage appendAttributedString:attrStr];
     };
     
+    mrb = NULL;
     irep_number = -1;
 }
 
@@ -77,6 +78,13 @@ static mrb_value mrb_printstr(mrb_state *mrb, mrb_value self)
     [self.runButton setEnabled:NO];
     
     NSString *bundleLocation = [[[NSBundle mainBundle] resourcePath] stringByAppendingPathComponent:@"test.mrb"];
+    
+    if(mrb != NULL)
+    {
+        mrb_close(mrb);
+        mrb = NULL;
+        irep_number = -1;
+    }
     
     mrb = mrb_open();
     
@@ -128,6 +136,13 @@ static mrb_value mrb_printstr(mrb_state *mrb, mrb_value self)
        
         if(result == NSFileHandlingPanelOKButton)
         {
+            if(mrb != NULL)
+            {
+                mrb_close(mrb);
+                mrb = NULL;
+                irep_number = -1;
+            }
+            
             mrb = mrb_open();
             
             FILE *fp = fopen([fileDialog.URL.path UTF8String], "rb");
