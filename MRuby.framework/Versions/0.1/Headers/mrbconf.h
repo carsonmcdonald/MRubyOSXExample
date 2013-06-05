@@ -26,6 +26,9 @@
 /* define on big endian machines; used by MRB_NAN_BOXING */
 //#define MRB_ENDIAN_BIG
 
+/* represent mrb_value as a word (natural unit of data for the processor) */
+// #define MRB_WORD_BOXING
+
 /* argv max size in mrb_funcall */
 //#define MRB_FUNCALL_ARGC_MAX 16
 
@@ -116,6 +119,7 @@ typedef short mrb_sym;
 #endif
 
 #ifdef _MSC_VER
+# define _ALLOW_KEYWORD_MACROS
 # include <float.h>
 # define inline __inline
 # define snprintf _snprintf

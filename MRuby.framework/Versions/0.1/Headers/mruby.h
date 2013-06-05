@@ -1,7 +1,7 @@
 /*
 ** mruby - An embeddable Ruby implementation
 **
-** Copyright (c) mruby developers 2010-2012
+** Copyright (c) mruby developers 2010-2013
 **
 ** Permission is hereby granted, free of charge, to any person obtaining
 ** a copy of this software and associated documentation files (the
@@ -61,16 +61,15 @@ typedef struct {
   struct REnv *env;
 } mrb_callinfo;
 
-enum gc_state {
-  GC_STATE_NONE = 0,
-  GC_STATE_MARK,
-  GC_STATE_SWEEP
+enum mrb_fiber_state {
+  MRB_FIBER_CREATED = 0,
+  MRB_FIBER_RUNNING,
+  MRB_FIBER_RESUMED,
+  MRB_FIBER_TERMINATED,
 };
 
-typedef struct mrb_state {
-  void *jmp;
-
-  mrb_allocf allocf;
+struct mrb_context {
+  struct mrb_context *prev;
 
   mrb_value *stack;
   mrb_value *stbase, *stend;
@@ -83,9 +82,26 @@ typedef struct mrb_state {
   struct RProc **ensure;
   int esize;
 
+  uint8_t status;
+  struct RFiber *fib;
+};
+
+enum gc_state {
+  GC_STATE_NONE = 0,
+  GC_STATE_MARK,
+  GC_STATE_SWEEP
+};
+
+typedef struct mrb_state {
+  void *jmp;
+
+  mrb_allocf allocf;
+
+  struct mrb_context *c;
+  struct mrb_context *root_c;
+
   struct RObject *exc;
   struct iv_tbl *globals;
-
   struct mrb_irep **irep;
   size_t irep_len, irep_capa;
 
@@ -140,7 +156,6 @@ typedef struct mrb_state {
   struct RClass *eStandardError_class;
 
   void *ud; /* auxiliary data */
-
 } mrb_state;
 
 typedef mrb_value (*mrb_func_t)(mrb_state *mrb, mrb_value);
@@ -161,7 +176,6 @@ struct RClass * mrb_class_new(mrb_state *mrb, struct RClass *super);
 struct RClass * mrb_module_new(mrb_state *mrb);
 int mrb_class_defined(mrb_state *mrb, const char *name);
 struct RClass * mrb_class_get(mrb_state *mrb, const char *name);
-struct RClass * mrb_class_obj_get(mrb_state *mrb, const char *name);
 
 mrb_value mrb_obj_dup(mrb_state *mrb, mrb_value obj);
 mrb_value mrb_check_to_integer(mrb_state *mrb, mrb_value val, const char *method);
@@ -259,11 +273,11 @@ int mrb_gc_arena_save(mrb_state*);
 void mrb_gc_arena_restore(mrb_state*,int);
 void mrb_gc_mark(mrb_state*,struct RBasic*);
 #define mrb_gc_mark_value(mrb,val) do {\
-  if (mrb_type(val) >= MRB_TT_OBJECT) mrb_gc_mark((mrb), mrb_basic_ptr(val));\
+  if (mrb_type(val) >= MRB_TT_HAS_BASIC) mrb_gc_mark((mrb), mrb_basic_ptr(val));\
 } while (0)
 void mrb_field_write_barrier(mrb_state *, struct RBasic*, struct RBasic*);
 #define mrb_field_write_barrier_value(mrb, obj, val) do{\
-  if ((val.tt >= MRB_TT_OBJECT)) mrb_field_write_barrier((mrb), (obj), mrb_basic_ptr(val));\
+  if ((val.tt >= MRB_TT_HAS_BASIC)) mrb_field_write_barrier((mrb), (obj), mrb_basic_ptr(val));\
 } while (0)
 void mrb_write_barrier(mrb_state *, struct RBasic*);
 
@@ -300,32 +314,34 @@ void mrb_exc_raise(mrb_state *mrb, mrb_value exc);
 void mrb_raise(mrb_state *mrb, struct RClass *c, const char *msg);
 void mrb_raisef(mrb_state *mrb, struct RClass *c, const char *fmt, ...);
 void mrb_name_error(mrb_state *mrb, mrb_sym id, const char *fmt, ...);
-void mrb_warn(const char *fmt, ...);
-void mrb_bug(const char *fmt, ...);
+void mrb_warn(mrb_state *mrb, const char *fmt, ...);
+void mrb_bug(mrb_state *mrb, const char *fmt, ...);
+void mrb_print_backtrace(mrb_state *mrb);
+void mrb_print_error(mrb_state *mrb);
 
 /* macros to get typical exception objects
    note:
    + those E_* macros requires mrb_state* variable named mrb.
    + exception objects obtained from those macros are local to mrb
 */
-#define E_RUNTIME_ERROR             (mrb_class_obj_get(mrb, "RuntimeError"))
-#define E_TYPE_ERROR                (mrb_class_obj_get(mrb, "TypeError"))
-#define E_ARGUMENT_ERROR            (mrb_class_obj_get(mrb, "ArgumentError"))
-#define E_INDEX_ERROR               (mrb_class_obj_get(mrb, "IndexError"))
-#define E_RANGE_ERROR               (mrb_class_obj_get(mrb, "RangeError"))
-#define E_NAME_ERROR                (mrb_class_obj_get(mrb, "NameError"))
-#define E_NOMETHOD_ERROR            (mrb_class_obj_get(mrb, "NoMethodError"))
-#define E_SCRIPT_ERROR              (mrb_class_obj_get(mrb, "ScriptError"))
-#define E_SYNTAX_ERROR              (mrb_class_obj_get(mrb, "SyntaxError"))
-#define E_LOCALJUMP_ERROR           (mrb_class_obj_get(mrb, "LocalJumpError"))
-#define E_REGEXP_ERROR              (mrb_class_obj_get(mrb, "RegexpError"))
+#define E_RUNTIME_ERROR             (mrb_class_get(mrb, "RuntimeError"))
+#define E_TYPE_ERROR                (mrb_class_get(mrb, "TypeError"))
+#define E_ARGUMENT_ERROR            (mrb_class_get(mrb, "ArgumentError"))
+#define E_INDEX_ERROR               (mrb_class_get(mrb, "IndexError"))
+#define E_RANGE_ERROR               (mrb_class_get(mrb, "RangeError"))
+#define E_NAME_ERROR                (mrb_class_get(mrb, "NameError"))
+#define E_NOMETHOD_ERROR            (mrb_class_get(mrb, "NoMethodError"))
+#define E_SCRIPT_ERROR              (mrb_class_get(mrb, "ScriptError"))
+#define E_SYNTAX_ERROR              (mrb_class_get(mrb, "SyntaxError"))
+#define E_LOCALJUMP_ERROR           (mrb_class_get(mrb, "LocalJumpError"))
+#define E_REGEXP_ERROR              (mrb_class_get(mrb, "RegexpError"))
 
-#define E_NOTIMP_ERROR              (mrb_class_obj_get(mrb, "NotImplementedError"))
-#define E_FLOATDOMAIN_ERROR         (mrb_class_obj_get(mrb, "FloatDomainError"))
+#define E_NOTIMP_ERROR              (mrb_class_get(mrb, "NotImplementedError"))
+#define E_FLOATDOMAIN_ERROR         (mrb_class_get(mrb, "FloatDomainError"))
 
-#define E_KEY_ERROR                 (mrb_class_obj_get(mrb, "KeyError"))
+#define E_KEY_ERROR                 (mrb_class_get(mrb, "KeyError"))
 
-mrb_value mrb_yield(mrb_state *mrb, mrb_value v, mrb_value blk);
+mrb_value mrb_yield(mrb_state *mrb, mrb_value b, mrb_value arg);
 mrb_value mrb_yield_argv(mrb_state *mrb, mrb_value b, int argc, mrb_value *argv);
 mrb_value mrb_class_new_instance(mrb_state *mrb, int, mrb_value*, struct RClass *);
 mrb_value mrb_class_new_instance_m(mrb_state *mrb, mrb_value klass);
