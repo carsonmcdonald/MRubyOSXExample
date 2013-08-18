@@ -234,11 +234,11 @@ typedef union mrb_value {
     void *p;
     struct {
       unsigned int i_flag : MRB_FIXNUM_SHIFT;
-      mrb_int i : (sizeof(mrb_int) * 8 - MRB_FIXNUM_SHIFT);
+      mrb_int i : (sizeof(mrb_int) * CHAR_BIT - MRB_FIXNUM_SHIFT);
     };
     struct {
       unsigned int sym_flag : MRB_SPECIAL_SHIFT;
-      int sym : (sizeof(mrb_sym) * 8);
+      int sym : (sizeof(mrb_sym) * CHAR_BIT);
     };
     struct RBasic *bp;
     struct RFloat *fp;
@@ -293,6 +293,7 @@ static inline mrb_value
 mrb_float_value(struct mrb_state *mrb, mrb_float f)
 {
   mrb_value v;
+  (void) mrb;
 
   MRB_SET_VALUE(v, MRB_TT_FLOAT, value.f, f);
   return v;
@@ -446,6 +447,7 @@ static inline mrb_value
 mrb_voidp_value(struct mrb_state *mrb, void *p)
 {
   mrb_value v;
+  (void) mrb;
 
   MRB_SET_VALUE(v, MRB_TT_VOIDP, value.p, p);
   return v;
