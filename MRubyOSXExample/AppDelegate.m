@@ -46,7 +46,7 @@ static mrb_value mrb_printstr(mrb_state *mrb, mrb_value self)
 @implementation AppDelegate
 {
     mrb_state *mrb;
-    int irep_number;
+    mrb_irep *irep;
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
@@ -57,7 +57,7 @@ static mrb_value mrb_printstr(mrb_state *mrb, mrb_value self)
     };
     
     mrb = NULL;
-    irep_number = -1;
+    irep = NULL;
 }
 
 - (IBAction)runButtonAction:(id)sender
@@ -67,7 +67,7 @@ static mrb_value mrb_printstr(mrb_state *mrb, mrb_value self)
     // Override the method used to print strings
     mrb_define_method(mrb, mrb->kernel_module, "__printstr__", mrb_printstr, ARGS_REQ(1));
     
-    mrb_run(mrb, mrb_proc_new(mrb, mrb->irep[irep_number]), mrb_top_self(mrb));
+    mrb_run(mrb, mrb_proc_new(mrb, irep), mrb_top_self(mrb));
     
     debugBlock(@"Run complete.\n");
 }
@@ -83,7 +83,7 @@ static mrb_value mrb_printstr(mrb_state *mrb, mrb_value self)
     {
         mrb_close(mrb);
         mrb = NULL;
-        irep_number = -1;
+        irep = NULL;
     }
     
     mrb = mrb_open();
@@ -102,9 +102,9 @@ static mrb_value mrb_printstr(mrb_state *mrb, mrb_value self)
     }
     else
     {
-        irep_number = mrb_read_irep_file(mrb, fp);
+        irep = mrb_read_irep_file(mrb, fp);
 
-        if(irep_number < 0)
+        if(irep == NULL)
         {
             debugBlock(@"Error loading test.\n");
         }
@@ -140,7 +140,7 @@ static mrb_value mrb_printstr(mrb_state *mrb, mrb_value self)
             {
                 mrb_close(mrb);
                 mrb = NULL;
-                irep_number = -1;
+                irep = NULL;
             }
             
             mrb = mrb_open();
@@ -154,11 +154,11 @@ static mrb_value mrb_printstr(mrb_state *mrb, mrb_value self)
             }
             else
             {
-                irep_number = mrb_read_irep_file(mrb, fp);
+                irep = mrb_read_irep_file(mrb, fp);
                 
                 fclose(fp);
                 
-                if(irep_number < 0)
+                if(irep == NULL)
                 {
                     debugBlock([NSString stringWithFormat:@"Error loading irep from: %@\n", fileDialog.URL.lastPathComponent]);
                 }
