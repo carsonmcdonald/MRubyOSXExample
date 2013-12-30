@@ -32,6 +32,9 @@ struct RString {
 #define RSTRING_CAPA(s)   (RSTRING(s)->aux.capa)
 #define RSTRING_END(s)    (RSTRING(s)->ptr + RSTRING(s)->len)
 
+#define MRB_STR_SHARED    1
+#define MRB_STR_NOFREE    2
+
 void mrb_gc_free_str(mrb_state*, struct RString*);
 void mrb_str_modify(mrb_state*, struct RString*);
 mrb_value mrb_str_literal(mrb_state*, mrb_value);
@@ -65,6 +68,7 @@ mrb_value mrb_str_append(mrb_state *mrb, mrb_value str, mrb_value str2);
 
 int mrb_str_cmp(mrb_state *mrb, mrb_value str1, mrb_value str2);
 char *mrb_str_to_cstr(mrb_state *mrb, mrb_value str);
+mrb_value mrb_str_pool(mrb_state *mrb, mrb_value str);
 
 /* For backward compatibility */
 static inline mrb_value
