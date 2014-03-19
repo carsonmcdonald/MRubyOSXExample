@@ -14,17 +14,10 @@ static DebugBlock debugBlock;
 // Message printing class method call
 static mrb_value foo_print_message(mrb_state* mrb, mrb_value obj)
 {
-    mrb_value message;
-    mrb_get_args(mrb, "o", &message);
+    char *message = NULL;
+    mrb_get_args(mrb, "z", &message);
     
-    if (mrb_nil_p(message))
-    {
-        debugBlock(@"\n");
-    }
-    else
-    {
-        debugBlock([NSString stringWithFormat:@"Foo::printMessage => %s\n", mrb_str_ptr(message)->ptr]);
-    }
+    debugBlock([NSString stringWithFormat:@"Foo::printMessage => %s\n", message]);
     
     return mrb_nil_value();
 }
@@ -32,15 +25,12 @@ static mrb_value foo_print_message(mrb_state* mrb, mrb_value obj)
 // Redirect printed output the the output text area.
 static mrb_value mrb_printstr(mrb_state *mrb, mrb_value self)
 {
-    mrb_value message;
-    mrb_get_args(mrb, "o", &message);
+    char *message = NULL;
+    mrb_get_args(mrb, "z", &message);
     
-    if(mrb_string_p(message))
-    {
-        debugBlock([NSString stringWithFormat:@"%s", mrb_str_ptr(message)->ptr]);
-    }
+    debugBlock([NSString stringWithFormat:@"%s", message]);
     
-    return message;
+    return mrb_str_new_cstr(mrb, message);
 }
 
 @implementation AppDelegate
