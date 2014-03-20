@@ -55,7 +55,7 @@ static mrb_value mrb_printstr(mrb_state *mrb, mrb_value self)
     debugBlock(@"Run starting.\n");
     
     // Override the method used to print strings
-    mrb_define_method(mrb, mrb->kernel_module, "__printstr__", mrb_printstr, ARGS_REQ(1));
+    mrb_define_method(mrb, mrb->kernel_module, "__printstr__", mrb_printstr, MRB_ARGS_REQ(1));
     
     mrb_run(mrb, mrb_proc_new(mrb, irep), mrb_top_self(mrb));
     
@@ -81,7 +81,7 @@ static mrb_value mrb_printstr(mrb_state *mrb, mrb_value self)
     struct RClass *foo_module = mrb_define_module(mrb, "Foo");
     
     // Define a class method with no args
-    mrb_define_class_method(mrb, foo_module, "print", foo_print_message, ARGS_REQ(1));
+    mrb_define_class_method(mrb, foo_module, "print", foo_print_message, MRB_ARGS_REQ(1));
     
     FILE *fp = fopen([bundleLocation UTF8String], "rb");
     if (fp == NULL)
