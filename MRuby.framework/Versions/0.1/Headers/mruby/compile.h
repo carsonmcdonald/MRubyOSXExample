@@ -5,14 +5,15 @@
 */
 
 #ifndef MRUBY_COMPILE_H
-#define MRUBY_COMPILE_H 1
+#define MRUBY_COMPILE_H
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
 #include "../mruby.h"
-#include <setjmp.h>
+
+struct mrb_jmpbuf;
 
 struct mrb_parser_state;
 /* load context */
@@ -42,18 +43,18 @@ typedef struct mrb_ast_node {
 
 /* lexer states */
 enum mrb_lex_state_enum {
-    EXPR_BEG,                   /* ignore newline, +/- is a sign. */
-    EXPR_END,                   /* newline significant, +/- is an operator. */
-    EXPR_ENDARG,                /* ditto, and unbound braces. */
-    EXPR_ENDFN,                 /* ditto, and unbound braces. */
-    EXPR_ARG,                   /* newline significant, +/- is an operator. */
-    EXPR_CMDARG,                /* newline significant, +/- is an operator. */
-    EXPR_MID,                   /* newline significant, +/- is an operator. */
-    EXPR_FNAME,                 /* ignore newline, no reserved words. */
-    EXPR_DOT,                   /* right after `.' or `::', no reserved words. */
-    EXPR_CLASS,                 /* immediate after `class', no here document. */
-    EXPR_VALUE,                 /* alike EXPR_BEG but label is disallowed. */
-    EXPR_MAX_STATE
+  EXPR_BEG,                   /* ignore newline, +/- is a sign. */
+  EXPR_END,                   /* newline significant, +/- is an operator. */
+  EXPR_ENDARG,                /* ditto, and unbound braces. */
+  EXPR_ENDFN,                 /* ditto, and unbound braces. */
+  EXPR_ARG,                   /* newline significant, +/- is an operator. */
+  EXPR_CMDARG,                /* newline significant, +/- is an operator. */
+  EXPR_MID,                   /* newline significant, +/- is an operator. */
+  EXPR_FNAME,                 /* ignore newline, no reserved words. */
+  EXPR_DOT,                   /* right after `.' or `::', no reserved words. */
+  EXPR_CLASS,                 /* immediate after `class', no here document. */
+  EXPR_VALUE,                 /* alike EXPR_BEG but label is disallowed. */
+  EXPR_MAX_STATE
 };
 
 /* saved error message */
@@ -147,7 +148,7 @@ struct mrb_parser_state {
   size_t filename_table_length;
   int current_filename_index;
 
-  jmp_buf jmp;
+  struct mrb_jmpbuf* jmp;
 };
 
 struct mrb_parser_state* mrb_parser_new(mrb_state*);

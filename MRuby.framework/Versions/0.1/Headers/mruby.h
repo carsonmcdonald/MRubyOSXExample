@@ -34,6 +34,7 @@ extern "C" {
 
 #include <stdint.h>
 #include <stddef.h>
+#include <limits.h>
 
 #include "mrbconf.h"
 #include "mruby/value.h"
@@ -69,7 +70,9 @@ typedef struct {
 enum mrb_fiber_state {
   MRB_FIBER_CREATED = 0,
   MRB_FIBER_RUNNING,
-  MRB_FIBER_RESUMED,
+  MRB_FIBER_RESUMING,
+  MRB_FIBER_SUSPENDED,
+  MRB_FIBER_TRANSFERRED,
   MRB_FIBER_TERMINATED,
 };
 
@@ -97,8 +100,10 @@ enum gc_state {
   GC_STATE_SWEEP
 };
 
+struct mrb_jmpbuf;
+
 typedef struct mrb_state {
-  void *jmp;
+  struct mrb_jmpbuf *jmp;
 
   mrb_allocf allocf;                      /* memory allocation function */
 
@@ -213,7 +218,7 @@ struct RClass * mrb_define_module_under(mrb_state *mrb, struct RClass *outer, co
 #define MRB_ARGS_BLOCK()    ((mrb_aspec)1)
 
 /* accept any number of arguments */
-#define MRB_ARGS_ANY()      ARGS_REST()
+#define MRB_ARGS_ANY()      MRB_ARGS_REST()
 /* accept no arguments */
 #define MRB_ARGS_NONE()     ((mrb_aspec)0)
 
@@ -229,19 +234,27 @@ struct RClass * mrb_define_module_under(mrb_state *mrb, struct RClass *outer, co
 
 int mrb_get_args(mrb_state *mrb, const char *format, ...);
 
+/* `strlen` for character string literals (use with caution or `strlen` instead)
+    Adjacent string literals are concatenated in C/C++ in translation phase 6.
+    If `lit` is not one, the compiler will report a syntax error:
+     MSVC: "error C2143: syntax error : missing ')' before 'string'"
+     GCC:  "error: expected ')' before string constant"
+*/
+#define mrb_strlen_lit(lit) (sizeof(lit "") - 1)
+
 mrb_value mrb_funcall(mrb_state*, mrb_value, const char*, int,...);
 mrb_value mrb_funcall_argv(mrb_state*, mrb_value, mrb_sym, int, mrb_value*);
 mrb_value mrb_funcall_with_block(mrb_state*, mrb_value, mrb_sym, int, mrb_value*, mrb_value);
 mrb_sym mrb_intern_cstr(mrb_state*,const char*);
 mrb_sym mrb_intern(mrb_state*,const char*,size_t);
 mrb_sym mrb_intern_static(mrb_state*,const char*,size_t);
-#define mrb_intern_lit(mrb, lit) mrb_intern_static(mrb, (lit), sizeof(lit) - 1)
+#define mrb_intern_lit(mrb, lit) mrb_intern_static(mrb, lit, mrb_strlen_lit(lit))
 mrb_sym mrb_intern_str(mrb_state*,mrb_value);
 mrb_value mrb_check_intern_cstr(mrb_state*,const char*);
 mrb_value mrb_check_intern(mrb_state*,const char*,size_t);
 mrb_value mrb_check_intern_str(mrb_state*,mrb_value);
 const char *mrb_sym2name(mrb_state*,mrb_sym);
-const char *mrb_sym2name_len(mrb_state*,mrb_sym,size_t*);
+const char *mrb_sym2name_len(mrb_state*,mrb_sym,mrb_int*);
 mrb_value mrb_sym2str(mrb_state*,mrb_sym);
 
 void *mrb_malloc(mrb_state*, size_t);         /* raise RuntimeError if no mem */
@@ -255,7 +268,7 @@ void mrb_free(mrb_state*, void*);
 mrb_value mrb_str_new(mrb_state *mrb, const char *p, size_t len);
 mrb_value mrb_str_new_cstr(mrb_state*, const char*);
 mrb_value mrb_str_new_static(mrb_state *mrb, const char *p, size_t len);
-#define mrb_str_new_lit(mrb, lit) mrb_str_new_static(mrb, (lit), sizeof(lit) - 1)
+#define mrb_str_new_lit(mrb, lit) mrb_str_new_static(mrb, (lit), mrb_strlen_lit(lit))
 
 mrb_state* mrb_open(void);
 mrb_state* mrb_open_allocf(mrb_allocf, void *ud);
@@ -304,7 +317,7 @@ mrb_value mrb_obj_clone(mrb_state *mrb, mrb_value self);
 
 /* need to include <ctype.h> to use these macros */
 #ifndef ISPRINT
-//#define ISASCII(c) isascii((int)(unsigned char)(c))
+/* #define ISASCII(c) isascii((int)(unsigned char)(c)) */
 #define ISASCII(c) 1
 #define ISPRINT(c) (ISASCII(c) && isprint((int)(unsigned char)(c)))
 #define ISSPACE(c) (ISASCII(c) && isspace((int)(unsigned char)(c)))
@@ -353,16 +366,17 @@ void mrb_print_error(mrb_state *mrb);
 
 mrb_value mrb_yield(mrb_state *mrb, mrb_value b, mrb_value arg);
 mrb_value mrb_yield_argv(mrb_state *mrb, mrb_value b, int argc, mrb_value *argv);
+mrb_value mrb_yield_with_class(mrb_state *mrb, mrb_value b, int argc, mrb_value *argv, mrb_value self, struct RClass *c);
 
 void mrb_gc_protect(mrb_state *mrb, mrb_value obj);
 mrb_value mrb_to_int(mrb_state *mrb, mrb_value val);
 void mrb_check_type(mrb_state *mrb, mrb_value x, enum mrb_vtype t);
 
 typedef enum call_type {
-    CALL_PUBLIC,
-    CALL_FCALL,
-    CALL_VCALL,
-    CALL_TYPE_MAX
+  CALL_PUBLIC,
+  CALL_FCALL,
+  CALL_VCALL,
+  CALL_TYPE_MAX
 } call_type;
 
 void mrb_define_alias(mrb_state *mrb, struct RClass *klass, const char *name1, const char *name2);
@@ -373,6 +387,10 @@ mrb_value mrb_attr_get(mrb_state *mrb, mrb_value obj, mrb_sym id);
 
 mrb_bool mrb_respond_to(mrb_state *mrb, mrb_value obj, mrb_sym mid);
 mrb_bool mrb_obj_is_instance_of(mrb_state *mrb, mrb_value obj, struct RClass* c);
+
+/* fiber functions (you need to link mruby-fiber mrbgem to use) */
+mrb_value mrb_fiber_yield(mrb_state *mrb, int argc, mrb_value *argv);
+#define E_FIBER_ERROR (mrb_class_get(mrb, "FiberError"))
 
 /* memory pool implementation */
 typedef struct mrb_pool mrb_pool;
