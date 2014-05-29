@@ -312,7 +312,7 @@ void mrb_gc_mark(mrb_state*,struct RBasic*);
 } while (0)
 void mrb_field_write_barrier(mrb_state *, struct RBasic*, struct RBasic*);
 #define mrb_field_write_barrier_value(mrb, obj, val) do{\
-  if (MRB_TT_HAS_BASIC_P(val.tt)) mrb_field_write_barrier((mrb), (obj), mrb_basic_ptr(val)); \
+  if (MRB_TT_HAS_BASIC_P(mrb_type(val))) mrb_field_write_barrier((mrb), (obj), mrb_basic_ptr(val)); \
 } while (0)
 void mrb_write_barrier(mrb_state *, struct RBasic*);
 
@@ -381,6 +381,7 @@ mrb_value mrb_yield_with_class(mrb_state *mrb, mrb_value b, mrb_int argc, const 
 
 void mrb_gc_protect(mrb_state *mrb, mrb_value obj);
 mrb_value mrb_to_int(mrb_state *mrb, mrb_value val);
+#define mrb_int(mrb, val) mrb_fixnum(mrb_to_int(mrb, val))
 void mrb_check_type(mrb_state *mrb, mrb_value x, enum mrb_vtype t);
 
 typedef enum call_type {
@@ -420,6 +421,8 @@ void* mrb_alloca(mrb_state *mrb, size_t);
 #define mrb_assert(p) ((void)0)
 #define mrb_assert_int_fit(t1,n,t2,max) ((void)0)
 #endif
+
+mrb_value mrb_format(mrb_state *mrb, const char *format, ...);
 
 #if defined(__cplusplus)
 }  /* extern "C" { */

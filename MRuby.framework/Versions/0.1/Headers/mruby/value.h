@@ -27,8 +27,13 @@
 # else
    typedef int64_t mrb_int;
 #  define MRB_INT_BIT 64
-#  define MRB_INT_MIN INT64_MIN
-#  define MRB_INT_MAX INT64_MAX
+#  ifdef MRB_WORD_BOXING
+#   define MRB_INT_MIN (INT64_MIN>>MRB_FIXNUM_SHIFT)
+#   define MRB_INT_MAX (INT64_MAX>>MRB_FIXNUM_SHIFT)
+#  else
+#   define MRB_INT_MIN INT64_MIN
+#   define MRB_INT_MAX INT64_MAX
+#  endif
 #  define PRIdMRB_INT PRId64
 #  define PRIiMRB_INT PRIi64
 #  define PRIoMRB_INT PRIo64
@@ -36,6 +41,9 @@
 #  define PRIXMRB_INT PRIX64
 # endif
 #elif defined(MRB_INT16)
+# ifdef MRB_WORD_BOXING
+# error "MRB_INT16 is too small for MRB_WORD_BOXING."
+# endif
   typedef int16_t mrb_int;
 # define MRB_INT_BIT 16
 # define MRB_INT_MIN INT16_MIN
@@ -43,8 +51,13 @@
 #else
   typedef int32_t mrb_int;
 # define MRB_INT_BIT 32
-# define MRB_INT_MIN INT32_MIN
-# define MRB_INT_MAX INT32_MAX
+# ifdef MRB_WORD_BOXING
+#  define MRB_INT_MIN (INT32_MIN>>MRB_FIXNUM_SHIFT)
+#  define MRB_INT_MAX (INT32_MAX>>MRB_FIXNUM_SHIFT)
+# else
+#  define MRB_INT_MIN INT32_MIN
+#  define MRB_INT_MAX INT32_MAX
+# endif
 # define PRIdMRB_INT PRId32
 # define PRIiMRB_INT PRIi32
 # define PRIoMRB_INT PRIo32
@@ -60,6 +73,7 @@ typedef short mrb_sym;
 # define snprintf _snprintf
 # if _MSC_VER < 1800
 #  include <float.h>
+#  define isfinite(n) _finite(n)
 #  define isnan _isnan
 #  define isinf(n) (!_finite(n) && !_isnan(n))
 #  define signbit(n) (_copysign(1.0, (n)) < 0.0)
@@ -75,7 +89,8 @@ typedef short mrb_sym;
 #  define PRIo64 "I64o"
 #  define PRIx64 "I64x"
 #  define PRIX64 "I64X"
-#  define INFINITY ((float)(DBL_MAX * DBL_MAX))
+static unsigned int IEEE754_INFINITY_BITS_SINGLE = 0x7F800000;
+#  define INFINITY (*(float *)&IEEE754_INFINITY_BITS_SINGLE)
 #  define NAN ((float)(INFINITY - INFINITY))
 # else
 #  include <inttypes.h>
@@ -138,12 +153,12 @@ typedef struct mrb_value {
     union {
       void *p;
       struct {
-	MRB_ENDIAN_LOHI(
- 	  uint32_t ttt;
+        MRB_ENDIAN_LOHI(
+          uint32_t ttt;
           ,union {
-	    mrb_int i;
-	    mrb_sym sym;
-	  };
+            mrb_int i;
+            mrb_sym sym;
+          };
         )
       };
     } value;
