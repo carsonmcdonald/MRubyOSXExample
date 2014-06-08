@@ -102,6 +102,8 @@ enum gc_state {
 
 struct mrb_jmpbuf;
 
+typedef void (*mrb_atexit_func)(struct mrb_state*);
+
 typedef struct mrb_state {
   struct mrb_jmpbuf *jmp;
 
@@ -167,8 +169,12 @@ typedef struct mrb_state {
 
   struct RClass *eException_class;
   struct RClass *eStandardError_class;
+  struct RObject *nomem_err;              /* pre-allocated NoMemoryError */
 
   void *ud; /* auxiliary data */
+
+  mrb_atexit_func *atexit_stack;
+  mrb_int atexit_stack_len;
 } mrb_state;
 
 #if __STDC_VERSION__ >= 201112L
@@ -328,8 +334,7 @@ mrb_value mrb_obj_clone(mrb_state *mrb, mrb_value self);
 
 /* need to include <ctype.h> to use these macros */
 #ifndef ISPRINT
-/* #define ISASCII(c) isascii((int)(unsigned char)(c)) */
-#define ISASCII(c) 1
+#define ISASCII(c) (!(((int)(unsigned char)(c)) & ~0x7f))
 #define ISPRINT(c) (ISASCII(c) && isprint((int)(unsigned char)(c)))
 #define ISSPACE(c) (ISASCII(c) && isspace((int)(unsigned char)(c)))
 #define ISUPPER(c) (ISASCII(c) && isupper((int)(unsigned char)(c)))
@@ -412,6 +417,8 @@ void* mrb_pool_alloc(struct mrb_pool*, size_t);
 void* mrb_pool_realloc(struct mrb_pool*, void*, size_t oldlen, size_t newlen);
 mrb_bool mrb_pool_can_realloc(struct mrb_pool*, void*, size_t);
 void* mrb_alloca(mrb_state *mrb, size_t);
+
+void mrb_atexit(mrb_state *mrb, mrb_atexit_func func);
 
 #ifdef MRB_DEBUG
 #include <assert.h>
