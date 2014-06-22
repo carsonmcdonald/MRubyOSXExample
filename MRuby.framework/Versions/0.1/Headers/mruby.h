@@ -52,6 +52,10 @@ typedef void* (*mrb_allocf) (struct mrb_state *mrb, void*, size_t, void *ud);
 #define MRB_GC_ARENA_SIZE 100
 #endif
 
+#ifndef MRB_FIXED_STATE_ATEXIT_STACK_SIZE
+#define MRB_FIXED_STATE_ATEXIT_STACK_SIZE 5
+#endif
+
 typedef struct {
   mrb_sym mid;
   struct RProc *proc;
@@ -173,7 +177,11 @@ typedef struct mrb_state {
 
   void *ud; /* auxiliary data */
 
+#ifdef MRB_FIXED_STATE_ATEXIT_STACK
+  mrb_atexit_func atexit_stack[MRB_FIXED_STATE_ATEXIT_STACK_SIZE];
+#else
   mrb_atexit_func *atexit_stack;
+#endif
   mrb_int atexit_stack_len;
 } mrb_state;
 
@@ -418,7 +426,7 @@ void* mrb_pool_realloc(struct mrb_pool*, void*, size_t oldlen, size_t newlen);
 mrb_bool mrb_pool_can_realloc(struct mrb_pool*, void*, size_t);
 void* mrb_alloca(mrb_state *mrb, size_t);
 
-void mrb_atexit(mrb_state *mrb, mrb_atexit_func func);
+void mrb_state_atexit(mrb_state *mrb, mrb_atexit_func func);
 
 #ifdef MRB_DEBUG
 #include <assert.h>
@@ -427,6 +435,12 @@ void mrb_atexit(mrb_state *mrb, mrb_atexit_func func);
 #else
 #define mrb_assert(p) ((void)0)
 #define mrb_assert_int_fit(t1,n,t2,max) ((void)0)
+#endif
+
+#if __STDC_VERSION__ >= 201112L
+#define mrb_static_assert(exp, str) _Static_assert(exp, str)
+#else
+#define mrb_static_assert(exp, str) mrb_assert(exp)
 #endif
 
 mrb_value mrb_format(mrb_state *mrb, const char *format, ...);
