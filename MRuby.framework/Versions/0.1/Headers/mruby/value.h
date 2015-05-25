@@ -7,7 +7,7 @@
 #ifndef MRUBY_VALUE_H
 #define MRUBY_VALUE_H
 
-typedef short mrb_sym;
+typedef uint32_t mrb_sym;
 typedef uint8_t mrb_bool;
 struct mrb_state;
 
@@ -24,47 +24,42 @@ struct mrb_state;
   typedef int16_t mrb_int;
 # define MRB_INT_BIT 16
 # define MRB_INT_MIN (INT16_MIN>>MRB_FIXNUM_SHIFT)
-# define MRB_INT_MAX )INT16_MAX>>MRB_FIXNUM_SHIFT)
+# define MRB_INT_MAX (INT16_MAX>>MRB_FIXNUM_SHIFT)
 #else
   typedef int32_t mrb_int;
 # define MRB_INT_BIT 32
 # define MRB_INT_MIN (INT32_MIN>>MRB_FIXNUM_SHIFT)
 # define MRB_INT_MAX (INT32_MAX>>MRB_FIXNUM_SHIFT)
 #endif
-  
+
 #ifdef MRB_USE_FLOAT
   typedef float mrb_float;
-# define mrb_float_to_str(buf, i) sprintf(buf, "%.7e", i)
 # define str_to_mrb_float(buf) strtof(buf, NULL)
 #else
   typedef double mrb_float;
-# define mrb_float_to_str(buf, i) sprintf(buf, "%.16e", i)
 # define str_to_mrb_float(buf) strtod(buf, NULL)
 #endif
 
-#ifdef _MSC_VER
+#if defined _MSC_VER && _MSC_VER < 1900
 # ifndef __cplusplus
 #  define inline __inline
 # endif
-# if _MSC_VER < 1900
-#  define snprintf _snprintf
-# endif
+# include <stdarg.h>
+MRB_API int mrb_msvc_vsnprintf(char *s, size_t n, const char *format, va_list arg);
+MRB_API int mrb_msvc_snprintf(char *s, size_t n, const char *format, ...);
+# define vsnprintf(s, n, format, arg) mrb_msvc_vsnprintf(s, n, format, arg)
+# define snprintf(s, n, format, ...) mrb_msvc_snprintf(s, n, format, __VA_ARGS__)
 # if _MSC_VER < 1800
 #  include <float.h>
 #  define isfinite(n) _finite(n)
 #  define isnan _isnan
 #  define isinf(n) (!_finite(n) && !_isnan(n))
 #  define signbit(n) (_copysign(1.0, (n)) < 0.0)
-#  define strtoll _strtoi64
 #  define strtof (float)strtod
 static const unsigned int IEEE754_INFINITY_BITS_SINGLE = 0x7F800000;
 #  define INFINITY (*(float *)&IEEE754_INFINITY_BITS_SINGLE)
 #  define NAN ((float)(INFINITY - INFINITY))
-# else
-#  include <inttypes.h>
 # endif
-#else
-# include <inttypes.h>
 #endif
 
 enum mrb_vtype {
@@ -122,13 +117,15 @@ enum mrb_vtype {
 #define mrb_string_p(o) (mrb_type(o) == MRB_TT_STRING)
 #define mrb_hash_p(o) (mrb_type(o) == MRB_TT_HASH)
 #define mrb_cptr_p(o) (mrb_type(o) == MRB_TT_CPTR)
+#define mrb_exception_p(o) (mrb_type(o) == MRB_TT_EXCEPTION)
 #define mrb_test(o)   mrb_bool(o)
-mrb_bool mrb_regexp_p(struct mrb_state*, mrb_value);
+MRB_API mrb_bool mrb_regexp_p(struct mrb_state*, mrb_value);
 
 static inline mrb_value
 mrb_float_value(struct mrb_state *mrb, mrb_float f)
 {
   mrb_value v;
+  (void) mrb;
   SET_FLOAT_VALUE(mrb, v, f);
   return v;
 }
@@ -137,6 +134,7 @@ static inline mrb_value
 mrb_cptr_value(struct mrb_state *mrb, void *p)
 {
   mrb_value v;
+  (void) mrb;
   SET_CPTR_VALUE(mrb,v,p);
   return v;
 }
@@ -204,5 +202,28 @@ mrb_undef_value(void)
   SET_UNDEF_VALUE(v);
   return v;
 }
+
+#ifdef MRB_USE_ETEXT_EDATA
+extern char _etext[];
+#ifdef MRB_NO_INIT_ARRAY_START
+extern char _edata[];
+
+static inline mrb_bool
+mrb_ro_data_p(const char *p)
+{
+  return _etext < p && p < _edata;
+}
+#else
+extern char __init_array_start[];
+
+static inline mrb_bool
+mrb_ro_data_p(const char *p)
+{
+  return _etext < p && p < (char*)&__init_array_start;
+}
+#endif
+#else
+# define mrb_ro_data_p(p) FALSE
+#endif
 
 #endif  /* MRUBY_VALUE_H */

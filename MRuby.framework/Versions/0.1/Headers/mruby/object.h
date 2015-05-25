@@ -37,32 +37,19 @@ struct RBasic {
   MRB_OBJECT_HEADER;
 };
 #define mrb_basic_ptr(v) ((struct RBasic*)(mrb_ptr(v)))
-/* obsolete macro mrb_basic; will be removed soon */
-#define mrb_basic(v)     mrb_basic_ptr(v)
 
 struct RObject {
   MRB_OBJECT_HEADER;
   struct iv_tbl *iv;
 };
 #define mrb_obj_ptr(v)   ((struct RObject*)(mrb_ptr(v)))
-/* obsolete macro mrb_object; will be removed soon */
-#define mrb_object(o) mrb_obj_ptr(o)
+
 #define mrb_immediate_p(x) (mrb_type(x) < MRB_TT_HAS_BASIC)
 #define mrb_special_const_p(x) mrb_immediate_p(x)
 
 struct RFiber {
   MRB_OBJECT_HEADER;
   struct mrb_context *cxt;
-};
-
-struct RFloat {
-  MRB_OBJECT_HEADER;
-  mrb_float f;
-};
-
-struct RCptr {
-  MRB_OBJECT_HEADER;
-  void *p;
 };
 
 #endif  /* MRUBY_OBJECT_H */

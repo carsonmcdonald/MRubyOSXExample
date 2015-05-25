@@ -11,6 +11,16 @@
 # error MRB_INT16 is too small for MRB_WORD_BOXING.
 #endif
 
+struct RFloat {
+  MRB_OBJECT_HEADER;
+  mrb_float f;
+};
+
+struct RCptr {
+  MRB_OBJECT_HEADER;
+  void *p;
+};
+
 #define MRB_FIXNUM_SHIFT 1
 #define MRB_TT_HAS_BASIC MRB_TT_FLOAT
 
@@ -34,7 +44,7 @@ typedef union mrb_value {
     };
     struct {
       unsigned int sym_flag : MRB_SPECIAL_SHIFT;
-      int sym : (sizeof(mrb_sym) * CHAR_BIT);
+      mrb_sym sym : (sizeof(mrb_sym) * CHAR_BIT);
     };
     struct RBasic *bp;
     struct RFloat *fp;
@@ -43,9 +53,9 @@ typedef union mrb_value {
   unsigned long w;
 } mrb_value;
 
-mrb_value mrb_word_boxing_cptr_value(struct mrb_state*, void*);
-mrb_value mrb_word_boxing_float_value(struct mrb_state*, mrb_float);
-mrb_value mrb_word_boxing_float_pool(struct mrb_state*, mrb_float);
+MRB_API mrb_value mrb_word_boxing_cptr_value(struct mrb_state*, void*);
+MRB_API mrb_value mrb_word_boxing_float_value(struct mrb_state*, mrb_float);
+MRB_API mrb_value mrb_word_boxing_float_pool(struct mrb_state*, mrb_float);
 
 #define mrb_float_pool(mrb,f) mrb_word_boxing_float_pool(mrb,f)
 
@@ -82,15 +92,13 @@ mrb_type(mrb_value o)
 #define mrb_nil_p(o)  ((o).w == MRB_Qnil)
 
 #define BOXWORD_SET_VALUE(o, ttt, attr, v) do {\
-  (o).w = 0;\
-  (o).attr = (v);\
   switch (ttt) {\
   case MRB_TT_FALSE:  (o).w = (v) ? MRB_Qfalse : MRB_Qnil; break;\
   case MRB_TT_TRUE:   (o).w = MRB_Qtrue; break;\
   case MRB_TT_UNDEF:  (o).w = MRB_Qundef; break;\
-  case MRB_TT_FIXNUM: (o).value.i_flag = MRB_FIXNUM_FLAG; break;\
-  case MRB_TT_SYMBOL: (o).value.sym_flag = MRB_SYMBOL_FLAG; break;\
-  default:            if ((o).value.bp) (o).value.bp->tt = ttt; break;\
+  case MRB_TT_FIXNUM: (o).value.i_flag = MRB_FIXNUM_FLAG; (o).attr = (v); break;\
+  case MRB_TT_SYMBOL: (o).value.sym_flag = MRB_SYMBOL_FLAG; (o).attr = (v); break;\
+  default:            (o).w = 0; (o).attr = (v); if ((o).value.bp) (o).value.bp->tt = ttt; break;\
   }\
 } while (0)
 
@@ -103,7 +111,6 @@ mrb_type(mrb_value o)
 #define SET_INT_VALUE(r,n) BOXWORD_SET_VALUE(r, MRB_TT_FIXNUM, value.i, (n))
 #define SET_SYM_VALUE(r,v) BOXWORD_SET_VALUE(r, MRB_TT_SYMBOL, value.sym, (v))
 #define SET_OBJ_VALUE(r,v) BOXWORD_SET_VALUE(r, (((struct RObject*)(v))->tt), value.p, (v))
-#define SET_PROC_VALUE(r,v) BOXWORD_SET_VALUE(r, MRB_TT_PROC, value.p, v)
 #define SET_UNDEF_VALUE(r) BOXWORD_SET_VALUE(r, MRB_TT_UNDEF, value.i, 0)
 
 #endif  /* MRUBY_BOXING_WORD_H */
